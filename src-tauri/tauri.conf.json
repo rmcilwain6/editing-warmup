@@ -1,0 +1,31 @@
+{
+  "build": {
+    "beforeBuildCommand": "",
+    "beforeDevCommand": "",
+    "devPath": "../dist",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "Lightroom Warmup",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "windows": [
+      {
+        "title": "Lightroom Warmup",
+        "width": 420,
+        "height": 520,
+        "resizable": false,
+        "alwaysOnTop": true
+      }
+    ],
+    "allowlist": {
+      "all": true
+    },
+    "bundle": {
+      "active": true,
+      "identifier": "com.example.lightroomwarmup",
+      "targets": "all"
+    }
+  }
+}
