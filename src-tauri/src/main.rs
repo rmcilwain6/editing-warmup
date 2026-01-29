@@ -14,9 +14,9 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
 
 // TODO: Update ARCHIVE_ROOT to your RAW archive folder.
-const ARCHIVE_ROOT: &str = r"X:\TODO\YOUR\ARCHIVE\ROOT";
+const ARCHIVE_ROOT: &str = r"C:\Users\reedm\Pictures\TestRawFiles";
 // TODO: Update EXPORT_ROOT to your desired export folder root.
-const EXPORT_ROOT: &str = r"C:\TODO\YOUR\EXPORT\ROOT";
+const EXPORT_ROOT: &str = r"C:\Users\reedm\Pictures\TestRawFiles\Testing";
 const PHOTOS_PER_SESSION: usize = 3;
 const SECONDS_PER_PHOTO: u64 = 300;
 const ATTEMPTS_PER_PHOTO: usize = 25;
