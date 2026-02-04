@@ -1,0 +1,95 @@
+# ================================
+# Rust
+# ================================
+
+/target
+**/*.rs.bk
+Cargo.lock
+
+# NOTE:
+# For applications you usually COMMIT Cargo.lock.
+# If this is an app (not a library), you may WANT to remove the line above.
+
+
+# ================================
+# Tauri
+# ================================
+
+# Tauri build output
+/src-tauri/target
+/src-tauri/binaries
+/src-tauri/gen
+
+# Bundled app artifacts
+/src-tauri/*.msi
+/src-tauri/*.exe
+/src-tauri/*.app
+/src-tauri/*.dmg
+
+# Icon cache sometimes generated
+/src-tauri/icons/*.cache
+
+
+# ================================
+# Frontend (if you add one later)
+# ================================
+
+node_modules
+dist
+build
+.vite
+.next
+out
+
+
+# ================================
+# Logs
+# ================================
+
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+
+# ================================
+# OS Junk
+# ================================
+
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+
+# ================================
+# IDE / Editor
+# ================================
+
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+
+# ================================
+# Environment / Secrets
+# ================================
+
+.env
+.env.*
+!.env.example
+
+
+# ================================
+# Temporary
+# ================================
+
+tmp/
+temp/
+*.tmp
+
+
+# ========================

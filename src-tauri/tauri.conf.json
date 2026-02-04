@@ -1,0 +1,23 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Lightroom Warmup",
+  "version": "0.1.0",
+  "identifier": "com.example.lightroomwarmup",
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "frontendDist": "../dist",
+    "devUrl": null
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Lightroom Warmup",
+        "width": 420,
+        "height": 520,
+        "resizable": false,
+        "alwaysOnTop": true
+      }
+    ]
+  }
+}

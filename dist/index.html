@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lightroom Warmup</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main id="app">
+      <header>
+        <h1>Lightroom Warmup</h1>
+      </header>
+      <section id="ready" class="panel active">
+        <p class="label">Archive Root</p>
+        <p id="archive-root" class="mono"></p>
+        <p class="label">Export Root</p>
+        <p id="export-root" class="mono"></p>
+        <button id="start">Start</button>
+        <p id="ready-error" class="error"></p>
+      </section>
+
+      <section id="active" class="panel">
+        <p id="step-label" class="label"></p>
+        <p id="raw-path" class="mono"></p>
+        <p id="expected" class="small"></p>
+        <p id="timer" class="timer"></p>
+        <p id="status" class="status"></p>
+        <div class="button-row">
+          <button id="next">Next</button>
+          <button id="skip">Skip</button>
+        </div>
+      </section>
+
+      <section id="expired" class="panel">
+        <p class="banner">Time's up</p>
+        <div class="button-row">
+          <button id="expired-next">Next</button>
+          <button id="expired-skip">Skip</button>
+          <button id="keep-working">Keep working</button>
+        </div>
+      </section>
+
+      <section id="summary" class="panel">
+        <h2>Session Summary</h2>
+        <ul id="export-list"></ul>
+        <div class="button-row">
+          <button id="open-folder">Open export folder</button>
+          <button id="new-session">Start new session</button>
+        </div>
+      </section>
+    </main>
+    <script src="main.js"></script>
+  </body>
+</html>
