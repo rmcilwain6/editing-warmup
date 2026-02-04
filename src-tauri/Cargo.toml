@@ -2,9 +2,10 @@
 name = "lightroom-warmup"
 version = "0.1.0"
 edition = "2021"
+metadata = ''
 
 [build-dependencies]
-tauri-build = { version = "1", features = [] }
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
@@ -15,8 +16,8 @@ chrono = { version = "0.4", features = ["clock"] }
 open = "5"
 
 [dependencies.tauri]
-version = "1"
-features = ["api-all"]
+version = "2"
+features = []
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]

@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter};
 
 // TODO: Update ARCHIVE_ROOT to your RAW archive folder.
 const ARCHIVE_ROOT: &str = r"C:\Users\reedm\Pictures\TestRawFiles";
@@ -70,6 +70,7 @@ fn get_config() -> (String, String) {
 
 #[tauri::command]
 fn start_session(app: AppHandle, state: tauri::State<SharedState>) -> Result<(), String> {
+    let state = state.inner().clone();
     let session_id = {
         let mut guard = state.current_session.lock().map_err(|_| "Lock error")?;
         *guard += 1;
@@ -81,7 +82,7 @@ fn start_session(app: AppHandle, state: tauri::State<SharedState>) -> Result<(),
         .map_err(|err| err.to_string())?;
 
     if picks.len() < PHOTOS_PER_SESSION {
-        app.emit_all(
+        app.emit(
             "session_error",
             ErrorPayload {
                 message: "Unable to locate enough .CR2 files with random walk.".to_string(),
@@ -91,15 +92,17 @@ fn start_session(app: AppHandle, state: tauri::State<SharedState>) -> Result<(),
         return Ok(());
     }
 
-    let mut guard = state.inner.lock().map_err(|_| "Lock error")?;
-    guard.session = Some(SessionState {
-        export_dir: export_dir.clone(),
-        picks: picks.clone(),
-        current_idx: 0,
-        session_id,
-        step_started_at: Instant::now(),
-        expected_jpg: PathBuf::new(),
-    });
+    {
+        let mut guard = state.inner.lock().map_err(|_| "Lock error")?;
+        guard.session = Some(SessionState {
+            export_dir: export_dir.clone(),
+            picks: picks.clone(),
+            current_idx: 0,
+            session_id,
+            step_started_at: Instant::now(),
+            expected_jpg: PathBuf::new(),
+        });
+    }
 
     start_watcher(app.clone(), state.clone(), export_dir.clone(), session_id)?;
     start_step(app, state, session_id)?;
@@ -109,25 +112,29 @@ fn start_session(app: AppHandle, state: tauri::State<SharedState>) -> Result<(),
 
 #[tauri::command]
 fn manual_next(app: AppHandle, state: tauri::State<SharedState>) -> Result<(), String> {
+    let state = state.inner().clone();
     advance_step(app, state, false)
 }
 
 #[tauri::command]
 fn skip_step(app: AppHandle, state: tauri::State<SharedState>) -> Result<(), String> {
+    let state = state.inner().clone();
     advance_step(app, state, true)
 }
 
 #[tauri::command]
 fn keep_working(app: AppHandle, state: tauri::State<SharedState>) -> Result<(), String> {
+    let state = state.inner().clone();
     let guard = state.inner.lock().map_err(|_| "Lock error")?;
     if let Some(session) = &guard.session {
-        app.emit_all("step_resumed", session.current_idx).ok();
+        app.emit("step_resumed", session.current_idx).ok();
     }
     Ok(())
 }
 
 #[tauri::command]
 fn open_export_folder(state: tauri::State<SharedState>) -> Result<(), String> {
+    let state = state.inner().clone();
     let guard = state.inner.lock().map_err(|_| "Lock error")?;
     if let Some(session) = &guard.session {
         open::that(&session.export_dir).map_err(|err| err.to_string())?;
@@ -135,7 +142,7 @@ fn open_export_folder(state: tauri::State<SharedState>) -> Result<(), String> {
     Ok(())
 }
 
-fn advance_step(app: AppHandle, state: tauri::State<SharedState>, _skipped: bool) -> Result<(), String> {
+fn advance_step(app: AppHandle, state: SharedState, _skipped: bool) -> Result<(), String> {
     let session_id = {
         let guard = state.inner.lock().map_err(|_| "Lock error")?;
         guard.session.as_ref().map(|s| s.session_id).unwrap_or(0)
@@ -143,7 +150,7 @@ fn advance_step(app: AppHandle, state: tauri::State<SharedState>, _skipped: bool
     start_step(app, state, session_id)
 }
 
-fn start_step(app: AppHandle, state: tauri::State<SharedState>, session_id: usize) -> Result<(), String> {
+fn start_step(app: AppHandle, state: SharedState, session_id: usize) -> Result<(), String> {
     let mut guard = state.inner.lock().map_err(|_| "Lock error")?;
     let session = match guard.session.as_mut() {
         Some(session) => session,
@@ -156,7 +163,7 @@ fn start_step(app: AppHandle, state: tauri::State<SharedState>, session_id: usiz
 
     if session.current_idx >= session.picks.len() {
         let exports = list_exports(&session.export_dir);
-        app.emit_all(
+        app.emit(
             "session_finished",
             SessionFinishedPayload {
                 export_dir: session.export_dir.display().to_string(),
@@ -180,7 +187,7 @@ fn start_step(app: AppHandle, state: tauri::State<SharedState>, session_id: usiz
         seconds_remaining: SECONDS_PER_PHOTO,
     };
 
-    app.emit_all("step_started", payload).ok();
+    app.emit("step_started", payload).ok();
     open::that(&raw_path).map_err(|err| err.to_string())?;
     start_timer(app.clone(), state.clone(), session.session_id, session.current_idx);
 
@@ -188,7 +195,7 @@ fn start_step(app: AppHandle, state: tauri::State<SharedState>, session_id: usiz
     Ok(())
 }
 
-fn start_timer(app: AppHandle, state: tauri::State<SharedState>, session_id: usize, step_idx: usize) {
+fn start_timer(app: AppHandle, state: SharedState, session_id: usize, step_idx: usize) {
     thread::spawn(move || {
         for remaining in (0..=SECONDS_PER_PHOTO).rev() {
             {
@@ -204,9 +211,9 @@ fn start_timer(app: AppHandle, state: tauri::State<SharedState>, session_id: usi
                 }
             }
 
-            app.emit_all("timer_tick", remaining).ok();
+            app.emit("timer_tick", remaining).ok();
             if remaining == 0 {
-                app.emit_all("time_expired", step_idx + 1).ok();
+                app.emit("time_expired", step_idx + 1).ok();
                 return;
             }
             thread::sleep(Duration::from_secs(1));
@@ -214,12 +221,7 @@ fn start_timer(app: AppHandle, state: tauri::State<SharedState>, session_id: usi
     });
 }
 
-fn start_watcher(
-    app: AppHandle,
-    state: tauri::State<SharedState>,
-    export_dir: PathBuf,
-    session_id: usize,
-) -> Result<(), String> {
+fn start_watcher(app: AppHandle, state: SharedState, export_dir: PathBuf, session_id: usize) -> Result<(), String> {
     let (tx, rx) = std::sync::mpsc::channel();
     let mut watcher = notify::recommended_watcher(move |res| {
         tx.send(res).ok();
@@ -262,7 +264,7 @@ fn start_watcher(
             }
 
             if expected.exists() && is_stable(&expected) {
-                app.emit_all("export_detected", current_idx).ok();
+                app.emit("export_detected", current_idx).ok();
                 let app_clone = app.clone();
                 let state_clone = state.clone();
                 thread::spawn(move || {

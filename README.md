@@ -6,6 +6,7 @@ A minimal Windows desktop companion for Lightroom warmup sessions. It randomly p
 
 - Rust toolchain
 - Tauri prerequisites for Windows (WebView2 + MSVC build tools)
+- `cargo install tauri-cli`
 - Lightroom set as the default handler for `.CR2` files
 
 ## Configuration (hardcoded placeholders)
