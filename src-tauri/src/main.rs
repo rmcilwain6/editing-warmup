@@ -1,24 +1,21 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod settings;
+
 use chrono::Local;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use rand::seq::SliceRandom;
 use rand::Rng;
 use serde::Serialize;
+use settings::Settings;
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 
-// TODO: Update ARCHIVE_ROOT to your RAW archive folder.
-const ARCHIVE_ROOT: &str = r"C:\Users\reedm\Pictures\TestRawFiles";
-// TODO: Update EXPORT_ROOT to your desired export folder root.
-const EXPORT_ROOT: &str = r"C:\Users\reedm\Pictures\TestRawFiles\Testing";
-const PHOTOS_PER_SESSION: usize = 3;
-const SECONDS_PER_PHOTO: u64 = 300;
 const ATTEMPTS_PER_PHOTO: usize = 25;
 
 #[derive(Debug, Clone, Serialize)]
@@ -28,6 +25,7 @@ struct StepPayload {
     raw_path: String,
     expected_jpg: String,
     seconds_remaining: u64,
+    challenge: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -49,6 +47,7 @@ struct SessionState {
     session_id: usize,
     step_started_at: Instant,
     expected_jpg: PathBuf,
+    seconds_per_photo: u64,
 }
 
 #[derive(Default)]
@@ -61,15 +60,49 @@ struct AppState {
 struct SharedState {
     inner: Arc<Mutex<AppState>>,
     current_session: Arc<Mutex<usize>>,
+    settings: Arc<Mutex<Settings>>,
 }
 
 #[tauri::command]
-fn get_config() -> (String, String) {
-    (ARCHIVE_ROOT.to_string(), EXPORT_ROOT.to_string())
+fn get_settings(state: tauri::State<SharedState>) -> Result<Settings, String> {
+    let guard = state.settings.lock().map_err(|_| "Lock error")?;
+    Ok(guard.clone())
 }
 
 #[tauri::command]
-fn start_session(app: AppHandle, state: tauri::State<SharedState>) -> Result<(), String> {
+fn save_settings(
+    app: AppHandle,
+    state: tauri::State<SharedState>,
+    settings: Settings,
+) -> Result<(), String> {
+    let clamped = Settings {
+        photos_per_session: settings.photos_per_session.clamp(1, 20),
+        seconds_per_photo: settings.seconds_per_photo.clamp(5, 3600),
+        challenges: settings.challenges,
+    };
+    settings::save_settings(&app, &clamped)?;
+    let mut guard = state.settings.lock().map_err(|_| "Lock error")?;
+    *guard = clamped;
+    Ok(())
+}
+
+fn pick_challenge(settings: &Settings) -> String {
+    let mut rng = rand::thread_rng();
+    let enabled: Vec<&settings::ChallengeDef> =
+        settings.challenges.iter().filter(|c| c.enabled).collect();
+    match enabled.choose(&mut rng) {
+        Some(challenge) => challenge.text.clone(),
+        None => "Edit the photo (no challenges enabled -- check Settings).".to_string(),
+    }
+}
+
+#[tauri::command]
+fn start_session(
+    app: AppHandle,
+    state: tauri::State<SharedState>,
+    archive_root: String,
+    export_root: String,
+) -> Result<(), String> {
     let state = state.inner().clone();
     let session_id = {
         let mut guard = state.current_session.lock().map_err(|_| "Lock error")?;
@@ -77,11 +110,21 @@ fn start_session(app: AppHandle, state: tauri::State<SharedState>) -> Result<(),
         *guard
     };
 
-    let export_dir = create_session_dir().map_err(|err| err.to_string())?;
-    let picks = pick_random_files(Path::new(ARCHIVE_ROOT), PHOTOS_PER_SESSION)
+    let archive_root_path = Path::new(&archive_root);
+    if !archive_root_path.is_dir() {
+        return Err(format!("Archive folder not found: {}", archive_root_path.display()));
+    }
+
+    let (photos_per_session, seconds_per_photo) = {
+        let guard = state.settings.lock().map_err(|_| "Lock error")?;
+        (guard.photos_per_session, guard.seconds_per_photo)
+    };
+
+    let export_dir = create_session_dir(&export_root).map_err(|err| err.to_string())?;
+    let picks = pick_random_files(archive_root_path, photos_per_session)
         .map_err(|err| err.to_string())?;
 
-    if picks.len() < PHOTOS_PER_SESSION {
+    if picks.len() < photos_per_session {
         app.emit(
             "session_error",
             ErrorPayload {
@@ -101,6 +144,7 @@ fn start_session(app: AppHandle, state: tauri::State<SharedState>) -> Result<(),
             session_id,
             step_started_at: Instant::now(),
             expected_jpg: PathBuf::new(),
+            seconds_per_photo,
         });
     }
 
@@ -178,26 +222,39 @@ fn start_step(app: AppHandle, state: SharedState, session_id: usize) -> Result<(
     let expected_jpg = expected_export_path(&session.export_dir, &raw_path);
     session.expected_jpg = expected_jpg.clone();
     session.step_started_at = Instant::now();
+    let seconds_per_photo = session.seconds_per_photo;
+
+    let challenge = {
+        let settings_guard = state.settings.lock().map_err(|_| "Lock error")?;
+        pick_challenge(&settings_guard)
+    };
 
     let payload = StepPayload {
         step_index: session.current_idx + 1,
         total_steps: session.picks.len(),
         raw_path: raw_path.display().to_string(),
         expected_jpg: expected_jpg.file_name().unwrap_or_default().to_string_lossy().to_string(),
-        seconds_remaining: SECONDS_PER_PHOTO,
+        seconds_remaining: seconds_per_photo,
+        challenge,
     };
 
     app.emit("step_started", payload).ok();
     open::that(&raw_path).map_err(|err| err.to_string())?;
-    start_timer(app.clone(), state.clone(), session.session_id, session.current_idx);
+    start_timer(
+        app.clone(),
+        state.clone(),
+        session.session_id,
+        session.current_idx,
+        seconds_per_photo,
+    );
 
     session.current_idx += 1;
     Ok(())
 }
 
-fn start_timer(app: AppHandle, state: SharedState, session_id: usize, step_idx: usize) {
+fn start_timer(app: AppHandle, state: SharedState, session_id: usize, step_idx: usize, seconds_per_photo: u64) {
     thread::spawn(move || {
-        for remaining in (0..=SECONDS_PER_PHOTO).rev() {
+        for remaining in (0..=seconds_per_photo).rev() {
             {
                 let guard = state.inner.lock();
                 if let Ok(guard) = guard {
@@ -293,9 +350,9 @@ fn expected_export_path(export_dir: &Path, raw_path: &Path) -> PathBuf {
     export_dir.join(format!("{stem}.jpg"))
 }
 
-fn create_session_dir() -> Result<PathBuf, std::io::Error> {
+fn create_session_dir(export_root: &str) -> Result<PathBuf, std::io::Error> {
     let timestamp = Local::now().format("%Y-%m-%d_%H-%M-%S");
-    let session_dir = Path::new(EXPORT_ROOT)
+    let session_dir = Path::new(export_root)
         .join("Warmups")
         .join(timestamp.to_string());
     fs::create_dir_all(&session_dir)?;
@@ -399,12 +456,22 @@ fn list_exports(export_dir: &Path) -> Vec<String> {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(SharedState {
             inner: Arc::new(Mutex::new(AppState::default())),
             current_session: Arc::new(Mutex::new(0)),
+            settings: Arc::new(Mutex::new(Settings::default())),
+        })
+        .setup(|app| {
+            let handle = app.handle().clone();
+            let loaded = settings::load_settings(&handle);
+            let state: tauri::State<SharedState> = app.state();
+            *state.settings.lock().map_err(|_| "Lock error")? = loaded;
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            get_config,
+            get_settings,
+            save_settings,
             start_session,
             manual_next,
             skip_step,

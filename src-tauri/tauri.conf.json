@@ -10,12 +10,13 @@
     "devUrl": null
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "Lightroom Warmup",
-        "width": 420,
-        "height": 520,
-        "resizable": false,
+        "width": 460,
+        "height": 640,
+        "resizable": true,
         "alwaysOnTop": true
       }
     ]

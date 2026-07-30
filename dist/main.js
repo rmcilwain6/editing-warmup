@@ -1,7 +1,9 @@
-const { invoke } = window.__TAURI__.tauri;
+const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
+const { open } = window.__TAURI__.dialog;
 
 const readyPanel = document.getElementById("ready");
+const settingsPanel = document.getElementById("settings");
 const activePanel = document.getElementById("active");
 const expiredPanel = document.getElementById("expired");
 const summaryPanel = document.getElementById("summary");
@@ -13,12 +15,17 @@ const readyError = document.getElementById("ready-error");
 const stepLabel = document.getElementById("step-label");
 const rawPath = document.getElementById("raw-path");
 const expected = document.getElementById("expected");
+const challengeText = document.getElementById("challenge-text");
+const challengeTextExpired = document.getElementById("challenge-text-expired");
 const timer = document.getElementById("timer");
 const status = document.getElementById("status");
 
 const exportList = document.getElementById("export-list");
 
+const pickArchiveButton = document.getElementById("pick-archive");
+const pickExportButton = document.getElementById("pick-export");
 const startButton = document.getElementById("start");
+const openSettingsButton = document.getElementById("open-settings");
 const nextButton = document.getElementById("next");
 const skipButton = document.getElementById("skip");
 const expiredNext = document.getElementById("expired-next");
@@ -27,14 +34,125 @@ const keepWorking = document.getElementById("keep-working");
 const openFolder = document.getElementById("open-folder");
 const newSession = document.getElementById("new-session");
 
+const photosPerSessionInput = document.getElementById("photos-per-session");
+const secondsPerPhotoInput = document.getElementById("seconds-per-photo");
+const challengeListEl = document.getElementById("challenge-list");
+const newChallengeText = document.getElementById("new-challenge-text");
+const addChallengeButton = document.getElementById("add-challenge");
+const settingsError = document.getElementById("settings-error");
+const settingsSaveButton = document.getElementById("settings-save");
+const settingsCancelButton = document.getElementById("settings-cancel");
+
 let awaitingSuccess = false;
+let archivePath = null;
+let exportPath = null;
+let settingsDraft = null;
+
+const updateStartEnabled = () => {
+  startButton.disabled = !(archivePath && exportPath);
+};
+
+pickArchiveButton.addEventListener("click", async () => {
+  const selection = await open({ directory: true, multiple: false, title: "Choose archive folder" });
+  if (selection) {
+    archivePath = selection;
+    archiveRoot.textContent = archivePath;
+    updateStartEnabled();
+  }
+});
+
+pickExportButton.addEventListener("click", async () => {
+  const selection = await open({ directory: true, multiple: false, title: "Choose export folder" });
+  if (selection) {
+    exportPath = selection;
+    exportRoot.textContent = exportPath;
+    updateStartEnabled();
+  }
+});
 
 const setPanel = (panel) => {
-  [readyPanel, activePanel, expiredPanel, summaryPanel].forEach((item) => {
+  [readyPanel, settingsPanel, activePanel, expiredPanel, summaryPanel].forEach((item) => {
     item.classList.remove("active");
   });
   panel.classList.add("active");
 };
+
+const renderChallengeList = () => {
+  challengeListEl.innerHTML = "";
+  settingsDraft.challenges.forEach((challenge, index) => {
+    const row = document.createElement("div");
+    row.className = "challenge-row";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = challenge.enabled;
+    checkbox.addEventListener("change", () => {
+      settingsDraft.challenges[index].enabled = checkbox.checked;
+    });
+
+    const text = document.createElement("span");
+    text.className = "challenge-row-text";
+    text.textContent = challenge.text;
+
+    row.appendChild(checkbox);
+    row.appendChild(text);
+
+    if (challenge.custom) {
+      const removeButton = document.createElement("button");
+      removeButton.className = "remove-challenge";
+      removeButton.textContent = "✕";
+      removeButton.addEventListener("click", () => {
+        settingsDraft.challenges.splice(index, 1);
+        renderChallengeList();
+      });
+      row.appendChild(removeButton);
+    }
+
+    challengeListEl.appendChild(row);
+  });
+};
+
+openSettingsButton.addEventListener("click", async () => {
+  settingsError.textContent = "";
+  const loaded = await invoke("get_settings");
+  settingsDraft = JSON.parse(JSON.stringify(loaded));
+  photosPerSessionInput.value = settingsDraft.photos_per_session;
+  secondsPerPhotoInput.value = settingsDraft.seconds_per_photo;
+  newChallengeText.value = "";
+  renderChallengeList();
+  setPanel(settingsPanel);
+});
+
+addChallengeButton.addEventListener("click", () => {
+  const text = newChallengeText.value.trim();
+  if (!text) {
+    return;
+  }
+  settingsDraft.challenges.push({
+    id: `custom-${Date.now()}`,
+    text,
+    enabled: true,
+    custom: true,
+  });
+  newChallengeText.value = "";
+  renderChallengeList();
+});
+
+settingsSaveButton.addEventListener("click", async () => {
+  settingsError.textContent = "";
+  settingsDraft.photos_per_session = parseInt(photosPerSessionInput.value, 10) || 1;
+  settingsDraft.seconds_per_photo = parseInt(secondsPerPhotoInput.value, 10) || 5;
+  try {
+    await invoke("save_settings", { settings: settingsDraft });
+    setPanel(readyPanel);
+  } catch (error) {
+    settingsError.textContent = String(error);
+  }
+});
+
+settingsCancelButton.addEventListener("click", () => {
+  setPanel(readyPanel);
+});
 
 const setStatus = (text) => {
   status.textContent = text;
@@ -53,7 +171,7 @@ startButton.addEventListener("click", async () => {
   setStatus("Starting session...");
   awaitingSuccess = false;
   try {
-    await invoke("start_session");
+    await invoke("start_session", { archiveRoot: archivePath, exportRoot: exportPath });
   } catch (error) {
     readyError.textContent = String(error);
     setPanel(readyPanel);
@@ -94,7 +212,7 @@ openFolder.addEventListener("click", async () => {
 newSession.addEventListener("click", async () => {
   readyError.textContent = "";
   startButton.textContent = "Start";
-  await invoke("start_session");
+  await invoke("start_session", { archiveRoot: archivePath, exportRoot: exportPath });
   setPanel(activePanel);
 });
 
@@ -111,6 +229,8 @@ listen("step_started", (event) => {
   stepLabel.textContent = `Photo ${payload.step_index} of ${payload.total_steps}`;
   rawPath.textContent = payload.raw_path;
   expected.textContent = `Expecting ${payload.expected_jpg}`;
+  challengeText.textContent = payload.challenge;
+  challengeTextExpired.textContent = payload.challenge;
   setTimer(payload.seconds_remaining);
   setStatus("Waiting for export...");
 });
@@ -152,11 +272,4 @@ listen("session_finished", (event) => {
   setPanel(summaryPanel);
 });
 
-const init = async () => {
-  const [archive, exportDir] = await invoke("get_config");
-  archiveRoot.textContent = archive;
-  exportRoot.textContent = exportDir;
-  setPanel(readyPanel);
-};
-
-init();
+setPanel(readyPanel);
