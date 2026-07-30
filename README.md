@@ -9,15 +9,6 @@ A minimal Windows desktop companion for Lightroom warmup sessions. It randomly p
 - `cargo install tauri-cli`
 - Lightroom set as the default handler for `.CR2` files
 
-## Configuration (hardcoded placeholders)
-
-Edit `src-tauri/src/main.rs`:
-
-- `ARCHIVE_ROOT`: root of your RAW archive
-- `EXPORT_ROOT`: root where session export folders will be created
-
-These are intentionally TODO placeholders and must be updated before running.
-
 ## Run (dev)
 
 ```bash
@@ -29,7 +20,7 @@ The frontend is served from `dist/` and requires no additional build step.
 
 ## Usage
 
-1. Launch the app and click **Start**.
+1. Launch the app, choose your **archive folder** (root of your RAW files) and **export folder** (where session subfolders get created), then click **Start**.
 2. Lightroom opens the first RAW.
 3. Export a JPG to the session folder. The app expects the filename to match the RAW basename (e.g., `IMG_1234.jpg`).
 4. Repeat for all three photos. A summary view lists any exported JPGs.

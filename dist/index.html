@@ -13,17 +13,49 @@
       </header>
       <section id="ready" class="panel active">
         <p class="label">Archive Root</p>
-        <p id="archive-root" class="mono"></p>
+        <p id="archive-root" class="mono">Not selected</p>
+        <button id="pick-archive">Choose archive folder</button>
+
         <p class="label">Export Root</p>
-        <p id="export-root" class="mono"></p>
-        <button id="start">Start</button>
+        <p id="export-root" class="mono">Not selected</p>
+        <button id="pick-export">Choose export folder</button>
+
+        <div class="button-row">
+          <button id="start" disabled>Start</button>
+          <button id="open-settings">Settings</button>
+        </div>
         <p id="ready-error" class="error"></p>
+      </section>
+
+      <section id="settings" class="panel">
+        <h2>Settings</h2>
+        <label class="label" for="photos-per-session">Photos per session</label>
+        <input type="number" id="photos-per-session" min="1" max="20" />
+
+        <label class="label" for="seconds-per-photo">Seconds per photo</label>
+        <input type="number" id="seconds-per-photo" min="5" max="3600" />
+
+        <p class="label">Challenges</p>
+        <div id="challenge-list" class="challenge-list"></div>
+
+        <div class="add-challenge-row">
+          <input type="text" id="new-challenge-text" placeholder="Add a custom challenge..." />
+          <button id="add-challenge">Add</button>
+        </div>
+
+        <p id="settings-error" class="error"></p>
+        <div class="button-row">
+          <button id="settings-save">Save</button>
+          <button id="settings-cancel">Cancel</button>
+        </div>
       </section>
 
       <section id="active" class="panel">
         <p id="step-label" class="label"></p>
         <p id="raw-path" class="mono"></p>
         <p id="expected" class="small"></p>
+        <p class="label">Your challenge</p>
+        <p id="challenge-text" class="challenge"></p>
         <p id="timer" class="timer"></p>
         <p id="status" class="status"></p>
         <div class="button-row">
@@ -34,6 +66,7 @@
 
       <section id="expired" class="panel">
         <p class="banner">Time's up</p>
+        <p id="challenge-text-expired" class="challenge"></p>
         <div class="button-row">
           <button id="expired-next">Next</button>
           <button id="expired-skip">Skip</button>

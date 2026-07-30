@@ -7,6 +7,8 @@
 body {
   margin: 0;
   padding: 24px;
+  max-height: 100vh;
+  overflow-y: auto;
 }
 
 header h1 {
@@ -91,6 +93,87 @@ button:hover {
   border-radius: 8px;
   font-weight: 600;
   margin: 0 0 12px;
+}
+
+.challenge {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  color: #312e81;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 4px 0 12px;
+}
+
+input[type="number"],
+input[type="text"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+  margin: 4px 0 12px;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.challenge-list {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid #e8eaed;
+  border-radius: 8px;
+  padding: 4px;
+  margin-bottom: 8px;
+}
+
+.challenge-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 4px;
+  border-bottom: 1px solid #f1f3f4;
+  font-size: 12px;
+}
+
+.challenge-row:last-child {
+  border-bottom: none;
+}
+
+.challenge-row input[type="checkbox"] {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.challenge-row .challenge-row-text {
+  flex: 1;
+}
+
+.challenge-row .remove-challenge {
+  background: transparent;
+  color: #c62828;
+  padding: 0 6px;
+  flex-shrink: 0;
+}
+
+.challenge-row .remove-challenge:hover {
+  background: #fce8e6;
+}
+
+.add-challenge-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.add-challenge-row input {
+  margin: 0;
+  flex: 1;
 }
 
 ul {
