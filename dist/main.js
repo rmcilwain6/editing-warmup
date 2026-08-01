@@ -272,4 +272,17 @@ listen("session_finished", (event) => {
   setPanel(summaryPanel);
 });
 
+(async () => {
+  const loaded = await invoke("get_settings");
+  if (loaded.last_archive_root) {
+    archivePath = loaded.last_archive_root;
+    archiveRoot.textContent = archivePath;
+  }
+  if (loaded.last_export_root) {
+    exportPath = loaded.last_export_root;
+    exportRoot.textContent = exportPath;
+  }
+  updateStartEnabled();
+})();
+
 setPanel(readyPanel);

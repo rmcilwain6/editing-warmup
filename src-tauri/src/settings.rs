@@ -4,31 +4,22 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
 const DEFAULT_CHALLENGES: &[&str] = &[
-    "Convert the photo to black and white -- no color at all.",
-    "Push the white balance drastically warmer or cooler than what looks \"correct.\"",
-    "Use only sliders in the Effects panel (grain, dehaze, vignette) -- everything else stays at zero.",
-    "Every slider you touch must land on exactly -100, 0, or +100 -- no in-between values.",
-    "Make it look like it was shot on expired film.",
+    "Convert the photo to black and white. No color at all.",
+    "Push the white balance drastically warmer or cooler than a neutral read.",
+    "Use only the Effects panel: grain, dehaze, vignette. Leave every other panel at zero.",
+    "Every slider you touch must land on exactly -100, 0, or +100. No in-between values.",
     "Crop to a square and recompose the shot entirely.",
     "Push exposure and contrast as far as you can while keeping the subject recognizable.",
-    "Edit using only the Tone Curve panel -- leave the basic sliders untouched.",
-    "Make the shadows pure black and blow out the highlights on purpose.",
+    "Edit using only the Tone Curve panel. Leave the Basic panel untouched.",
+    "Clip both tonal extremes on purpose: push the shadows to pure black and the highlights to a full blowout in the same edit.",
     "Desaturate everything except one color.",
     "Push the vignette as far as you can before it feels wrong.",
-    "Edit it as if it's the poster for a moody film noir.",
-    "Use split toning to give shadows and highlights two different color casts.",
-    "Push sharpening and clarity far beyond natural, then back off just slightly.",
+    "Use split toning to give the shadows and highlights two different color casts.",
+    "Push sharpening, clarity, and dehaze all to their maximum, then back off by 10 percent.",
     "Try to recover as much detail as possible from the darkest shadows.",
-    "Make it look overexposed and dreamy -- blow out the highlights intentionally.",
-    "Only use the HSL panel to change colors -- don't touch exposure or contrast.",
-    "Edit it for a black-and-white newspaper print.",
-    "Add heavy grain and treat it as a deliberate stylistic choice, not a flaw.",
-    "Edit for a cold, blue-toned \"winter morning\" mood, regardless of when it was shot.",
-    "Make a fairly plain photo look like a movie still.",
-    "Cut the saturation in half and see what the photo still says without color intensity.",
-    "Push clarity and dehaze to their max -- embrace the harsh, gritty look.",
-    "Edit as if inverting tonal expectations, like a print negative.",
-    "Give yourself 60 seconds and don't second-guess any slider.",
+    "Use only the HSL panel to change colors. Don't touch exposure or contrast.",
+    "Add heavy grain, at least +50, and treat it as a deliberate stylistic choice rather than a flaw.",
+    "Cut the saturation exactly in half.",
 ];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,6 +36,10 @@ pub struct Settings {
     pub photos_per_session: usize,
     pub seconds_per_photo: u64,
     pub challenges: Vec<ChallengeDef>,
+    #[serde(default)]
+    pub last_archive_root: Option<String>,
+    #[serde(default)]
+    pub last_export_root: Option<String>,
 }
 
 impl Default for Settings {
@@ -53,6 +48,8 @@ impl Default for Settings {
             photos_per_session: 3,
             seconds_per_photo: 300,
             challenges: default_challenge_defs(),
+            last_archive_root: None,
+            last_export_root: None,
         }
     }
 }
@@ -91,6 +88,8 @@ fn merge_with_defaults(saved: Settings) -> Settings {
         photos_per_session: saved.photos_per_session.clamp(1, 20),
         seconds_per_photo: saved.seconds_per_photo.clamp(5, 3600),
         challenges: merged_challenges,
+        last_archive_root: saved.last_archive_root,
+        last_export_root: saved.last_export_root,
     }
 }
 

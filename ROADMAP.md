@@ -50,10 +50,38 @@ feedback on."
       never exports? (Currently: timer expires, user can skip/keep working —
       probably fine, but worth explicitly deciding this is the intended UX)
 - [ ] "Restore defaults" button in Settings (reset challenges/timer/count)
-- [ ] Remember last-used archive/export folders across restarts (quality of
-      life; currently reselected every launch)
+- [x] Remember last-used archive/export folders across restarts (persisted
+      in settings.json, prefilled on launch)
 
-### 3. Challenge content
+### 3. Seeded-start challenges (XMP sidecars)
+Idea: before opening a RAW, write a `.xmp` sidecar next to it with specific
+Camera Raw develop settings already applied (e.g. forced grayscale, wrecked
+white balance, crushed exposure, a hard crop). The editor opens to that
+seeded state instead of untouched RAW data, and the challenge becomes
+"here's a photo with specific changes already made — don't undo them, edit
+from here." This is a new challenge *type* alongside today's flat text
+prompts, not a replacement for them.
+- [ ] Define a `SeededChallenge` variant (vs. today's plain-text `ChallengeDef`)
+      with a set of `crs:` fields to write (grayscale, WB/temp/tint, exposure,
+      crop, etc.)
+- [ ] Rust XMP sidecar writer: minimal RDF/XML template with the Camera Raw
+      namespace, filled from the seeded challenge's field values
+- [ ] Write the sidecar next to the picked RAW immediately before `open::that`
+      in `start_step()` (src-tauri/src/main.rs)
+- [ ] Settings UI: author/enable seeded challenges (which fields + values),
+      similar to the existing custom-challenge flow
+- [ ] Known limitation to design around: this only works reliably the *first*
+      time a RAW is opened/imported into a Lightroom catalog. If the archive
+      photo has already been cataloged before, Lightroom won't pick up a
+      sidecar dropped next to it without a manual "Read Metadata from File" —
+      confirm the archive-folder workflow guarantees fresh, never-imported
+      files before relying on this
+- [ ] Not in scope: true constraint *enforcement* (blocking specific sliders,
+      preventing reset) — would require a Lightroom Lua plugin and abandons
+      the "any OS-default editor" architecture. This feature is a seeded
+      starting point only, not a guardrail.
+
+### 4. Challenge content
 - [ ] Revisit the starter challenge list — the first draft is a placeholder;
       worth a pass once a few real sessions have been run
 - [ ] Decide if some sessions should force at least one challenge from a
@@ -61,7 +89,7 @@ feedback on."
       explicitly deferred earlier when "flat list, no categories" was chosen;
       revisit if variety turns out to be a problem in practice
 
-### 4. Visual design
+### 5. Visual design
 Right now the UI is unstyled functional HTML (system font, default blue
 buttons, no real visual identity). To actually be "designed":
 - [ ] Decide on a visual direction (this is a small always-on-top utility
@@ -72,7 +100,7 @@ buttons, no real visual identity). To actually be "designed":
 - [ ] Icon: currently only a placeholder `.ico`; needs a real app icon in
       all required formats per platform (see Packaging below)
 
-### 5. Packaging & distribution
+### 6. Packaging & distribution
 This is the big unknown the user asked about — details below in its own
 section. Concretely:
 - [ ] Fill in real `tauri.conf.json` bundle metadata (publisher, description,
@@ -86,7 +114,7 @@ section. Concretely:
 - [ ] Decide on update strategy: manual re-install for now, or wire up
       `tauri-plugin-updater` later
 
-### 6. Cross-platform (macOS)
+### 7. Cross-platform (macOS)
 Feasible — details below — but not yet started. Concretely:
 - [ ] Confirm `open`/dialog/notify crates behave the same on macOS (they're
       all cross-platform crates, but untested here)

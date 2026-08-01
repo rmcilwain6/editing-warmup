@@ -79,6 +79,8 @@ fn save_settings(
         photos_per_session: settings.photos_per_session.clamp(1, 20),
         seconds_per_photo: settings.seconds_per_photo.clamp(5, 3600),
         challenges: settings.challenges,
+        last_archive_root: settings.last_archive_root,
+        last_export_root: settings.last_export_root,
     };
     settings::save_settings(&app, &clamped)?;
     let mut guard = state.settings.lock().map_err(|_| "Lock error")?;
@@ -116,7 +118,10 @@ fn start_session(
     }
 
     let (photos_per_session, seconds_per_photo) = {
-        let guard = state.settings.lock().map_err(|_| "Lock error")?;
+        let mut guard = state.settings.lock().map_err(|_| "Lock error")?;
+        guard.last_archive_root = Some(archive_root.clone());
+        guard.last_export_root = Some(export_root.clone());
+        settings::save_settings(&app, &guard)?;
         (guard.photos_per_session, guard.seconds_per_photo)
     };
 
