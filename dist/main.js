@@ -28,8 +28,12 @@ const startButton = document.getElementById("start");
 const openSettingsButton = document.getElementById("open-settings");
 const nextButton = document.getElementById("next");
 const skipButton = document.getElementById("skip");
+const rejectButton = document.getElementById("reject");
+const activeError = document.getElementById("active-error");
 const expiredNext = document.getElementById("expired-next");
 const expiredSkip = document.getElementById("expired-skip");
+const expiredReject = document.getElementById("expired-reject");
+const expiredError = document.getElementById("expired-error");
 const keepWorking = document.getElementById("keep-working");
 const openFolder = document.getElementById("open-folder");
 const newSession = document.getElementById("new-session");
@@ -188,6 +192,16 @@ skipButton.addEventListener("click", async () => {
   await invoke("skip_step");
 });
 
+rejectButton.addEventListener("click", async () => {
+  activeError.textContent = "";
+  awaitingSuccess = false;
+  try {
+    await invoke("reject_current");
+  } catch (error) {
+    activeError.textContent = String(error);
+  }
+});
+
 expiredNext.addEventListener("click", async () => {
   awaitingSuccess = false;
   await invoke("manual_next");
@@ -198,6 +212,17 @@ expiredSkip.addEventListener("click", async () => {
   awaitingSuccess = false;
   await invoke("skip_step");
   setPanel(activePanel);
+});
+
+expiredReject.addEventListener("click", async () => {
+  expiredError.textContent = "";
+  awaitingSuccess = false;
+  try {
+    await invoke("reject_current");
+    setPanel(activePanel);
+  } catch (error) {
+    expiredError.textContent = String(error);
+  }
 });
 
 keepWorking.addEventListener("click", async () => {
@@ -224,6 +249,8 @@ listen("session_error", (event) => {
 
 listen("step_started", (event) => {
   awaitingSuccess = false;
+  activeError.textContent = "";
+  expiredError.textContent = "";
   const payload = event.payload;
   setPanel(activePanel);
   stepLabel.textContent = `Photo ${payload.step_index} of ${payload.total_steps}`;

@@ -52,8 +52,88 @@ feedback on."
 - [ ] "Restore defaults" button in Settings (reset challenges/timer/count)
 - [x] Remember last-used archive/export folders across restarts (persisted
       in settings.json, prefilled on launch)
+- [ ] Frontend source layout: `dist/` is hand-authored HTML/JS/CSS being used
+      directly as source (no bundler/build step), but the name implies a
+      generated build artifact. Rename to something intentional (e.g. `web/`
+      or `ui/`) and update `frontendDist` in `tauri.conf.json` accordingly —
+      purely a naming/organization cleanup, no behavior change
 
-### 3. Seeded-start challenges (XMP sidecars)
+### 3. Reject & redraw (distinct from skip) — done
+Today's "Skip" and "Next" buttons do the same thing under the hood
+(`skip_step`/`manual_next` both just call `advance_step`, which always moves
+to the next slot in the session) — there was no way to reject the *current*
+photo without spending one of the N session slots on it. Problem: the random
+picker occasionally surfaces a photo that can't be professionally
+edited/shared in this context (client work, a person who hasn't consented to
+sharing, etc.).
+- [x] "Can't use this photo" button added to both the active and expired
+      panels, separate from Skip/Next
+- [x] New `reject_current` Rust command: redraws a single replacement photo
+      via `random_walk_pick` (excluding paths already in the session's
+      `picks`), swaps it into the current slot, and re-invokes `start_step`
+      for that same slot — session length (N) is preserved
+- [x] Fixed a generation-counter bug this surfaced: the old timer-thread
+      staleness check compared against `current_idx`, which reject leaves
+      unchanged after redraw (decrement then re-increment lands on the same
+      value) — two timers would have run concurrently for the same slot.
+      Added a `step_generation` counter to `SessionState`, bumped every time
+      `start_step` actually starts a step, and use that for the staleness
+      check instead
+- [ ] Not yet addressed: UX for any `.xmp`/partial edit state left behind on
+      the rejected RAW (only relevant once seeded-start below exists)
+- [ ] Not yet addressed: a per-session "rejected" count/log so repeated
+      reject-and-redraw can't loop forever if the archive is small or mostly
+      unshareable — currently `pick_replacement` just returns `None` after
+      `ATTEMPTS_PER_PHOTO` failed tries, surfaced as an error in the UI
+
+### 4. Per-photo prompt manifest / output view
+Problem: once a session ends, there's no record of which challenge/prompt
+was attached to which photo. `session_finished` (src-tauri/src/main.rs) only
+emits a list of exported filenames — the challenge text picked per step
+(`StepPayload.challenge`) isn't retained anywhere past that single event. For
+posting later, you need to know "what was I told to do with this one" days
+after the session happened.
+Three options, not mutually exclusive:
+- [ ] **Enhanced summary screen**: track `(raw_path, expected_jpg, challenge)`
+      per step in `SessionState` as the session runs (currently only
+      `picks: Vec<PathBuf>` — needs a parallel/paired vec or a small struct),
+      and show challenge text next to each exported file on the existing
+      summary panel instead of just filenames
+- [ ] **Sidecar/manifest file alongside the export**: write either a
+      `<jpgname>.txt` per photo or a single `manifest.json`/`.csv` in the
+      session's export folder (`create_session_dir` already makes this
+      per-session folder) listing photo → challenge — travels with the files
+      if you copy them out for posting later
+- [ ] **Cross-session history log**: append each session's photo/challenge pairs
+      to a persistent log (e.g. JSONL in the app-data dir, alongside
+      `settings.json`) so past sessions remain searchable later, not just
+      the one just-finished summary screen
+- [ ] Recommended starting point: do the summary-screen version first (small,
+      contained to state already flowing through the app), then add the
+      sidecar manifest since it's the one that actually solves "I need this
+      information sitting next to the file when I go to post it"
+
+### 5. Stats over time
+Builds directly on the cross-session history log from #4 above — once every
+session is logged persistently (photo, challenge, outcome, timestamps), the
+same data supports a stats/progress view:
+- [ ] Completion rate: fraction of photos exported before the timer expired
+      vs. after expiry vs. never exported (currently the app doesn't
+      distinguish these outcomes at all — `time_expired`/`export_detected`
+      are transient UI events, nothing records which one "won" for a step)
+- [ ] Skipped vs. delivered counts, overall and per challenge/prompt, to
+      surface which challenges tend to get abandoned
+- [ ] Source breakdown: which archive folders/subfolders exported photos
+      came from (useful once the archive covers multiple shoots/years —
+      `random_walk_pick` already knows the picked path, just isn't retained)
+- [ ] A simple stats screen/panel reading the history log and computing these
+      aggregates on demand — no need for a database at personal-use scale,
+      the JSONL log can just be scanned and summarized in Rust or JS
+- [ ] Sequencing note: this is a consumer of #4's history log, not a
+      standalone feature — implement the persistent log first, stats view
+      second
+
+### 6. Seeded-start challenges (XMP sidecars)
 Idea: before opening a RAW, write a `.xmp` sidecar next to it with specific
 Camera Raw develop settings already applied (e.g. forced grayscale, wrecked
 white balance, crushed exposure, a hard crop). The editor opens to that
@@ -81,7 +161,7 @@ prompts, not a replacement for them.
       the "any OS-default editor" architecture. This feature is a seeded
       starting point only, not a guardrail.
 
-### 4. Challenge content
+### 7. Challenge content
 - [ ] Revisit the starter challenge list — the first draft is a placeholder;
       worth a pass once a few real sessions have been run
 - [ ] Decide if some sessions should force at least one challenge from a
@@ -89,7 +169,7 @@ prompts, not a replacement for them.
       explicitly deferred earlier when "flat list, no categories" was chosen;
       revisit if variety turns out to be a problem in practice
 
-### 5. Visual design
+### 8. Visual design
 Right now the UI is unstyled functional HTML (system font, default blue
 buttons, no real visual identity). To actually be "designed":
 - [ ] Decide on a visual direction (this is a small always-on-top utility
@@ -100,7 +180,24 @@ buttons, no real visual identity). To actually be "designed":
 - [ ] Icon: currently only a placeholder `.ico`; needs a real app icon in
       all required formats per platform (see Packaging below)
 
-### 6. Packaging & distribution
+### 9. Audible cues
+Small UX addition: sound effects for key session moments (step start, export
+detected/success, timer expiring, session finished), with a Settings toggle
+to mute them entirely.
+- [ ] Pick/produce a small set of short sound assets (start, success, warning,
+      finish) — a few seconds each, license-clear or self-made
+- [ ] Bundle assets as Tauri resources and play them from the frontend
+      (`dist/main.js`) on the relevant `listen(...)` events (`step_started`,
+      `export_detected`, `time_expired`, `session_finished`), using the Web
+      Audio API/`<audio>` — no new Rust dependency needed since playback can
+      stay entirely on the frontend side
+- [ ] Add a `sound_enabled` (bool, default true) field to `Settings`
+      (src-tauri/src/settings.rs) alongside the existing preferences, with a
+      checkbox in the Settings panel next to photos-per-session/timer
+- [ ] Respect the setting in the frontend: skip playback entirely when
+      disabled, rather than muting after the fact
+
+### 10. Packaging & distribution
 This is the big unknown the user asked about — details below in its own
 section. Concretely:
 - [ ] Fill in real `tauri.conf.json` bundle metadata (publisher, description,
@@ -114,7 +211,7 @@ section. Concretely:
 - [ ] Decide on update strategy: manual re-install for now, or wire up
       `tauri-plugin-updater` later
 
-### 7. Cross-platform (macOS)
+### 11. Cross-platform (macOS)
 Feasible — details below — but not yet started. Concretely:
 - [ ] Confirm `open`/dialog/notify crates behave the same on macOS (they're
       all cross-platform crates, but untested here)

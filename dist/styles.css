@@ -86,6 +86,19 @@ button:hover {
   margin-top: 8px;
 }
 
+.reject-button {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  background: transparent;
+  color: #c62828;
+  border: 1px solid #f3c2c2;
+}
+
+.reject-button:hover {
+  background: #fce8e6;
+}
+
 .banner {
   background: #fbbf24;
   color: #3b2f0b;

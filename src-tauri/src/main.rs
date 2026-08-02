@@ -42,9 +42,11 @@ struct ErrorPayload {
 #[derive(Debug, Clone)]
 struct SessionState {
     export_dir: PathBuf,
+    archive_root: PathBuf,
     picks: Vec<PathBuf>,
     current_idx: usize,
     session_id: usize,
+    step_generation: usize,
     step_started_at: Instant,
     expected_jpg: PathBuf,
     seconds_per_photo: u64,
@@ -144,9 +146,11 @@ fn start_session(
         let mut guard = state.inner.lock().map_err(|_| "Lock error")?;
         guard.session = Some(SessionState {
             export_dir: export_dir.clone(),
+            archive_root: archive_root_path.to_path_buf(),
             picks: picks.clone(),
             current_idx: 0,
             session_id,
+            step_generation: 0,
             step_started_at: Instant::now(),
             expected_jpg: PathBuf::new(),
             seconds_per_photo,
@@ -179,6 +183,33 @@ fn keep_working(app: AppHandle, state: tauri::State<SharedState>) -> Result<(), 
         app.emit("step_resumed", session.current_idx).ok();
     }
     Ok(())
+}
+
+#[tauri::command]
+fn reject_current(app: AppHandle, state: tauri::State<SharedState>) -> Result<(), String> {
+    let state = state.inner().clone();
+    let session_id = {
+        let mut guard = state.inner.lock().map_err(|_| "Lock error")?;
+        let session = match guard.session.as_mut() {
+            Some(session) => session,
+            None => return Ok(()),
+        };
+
+        if session.current_idx == 0 {
+            return Err("No active photo to reject.".to_string());
+        }
+
+        let slot = session.current_idx - 1;
+        let exclude: HashSet<PathBuf> = session.picks.iter().cloned().collect();
+        let replacement = pick_replacement(&session.archive_root, &exclude)
+            .ok_or_else(|| "No replacement photo available in the archive.".to_string())?;
+
+        session.picks[slot] = replacement;
+        session.current_idx = slot;
+        session.session_id
+    };
+
+    start_step(app, state, session_id)
 }
 
 #[tauri::command]
@@ -227,6 +258,8 @@ fn start_step(app: AppHandle, state: SharedState, session_id: usize) -> Result<(
     let expected_jpg = expected_export_path(&session.export_dir, &raw_path);
     session.expected_jpg = expected_jpg.clone();
     session.step_started_at = Instant::now();
+    session.step_generation += 1;
+    let generation = session.step_generation;
     let seconds_per_photo = session.seconds_per_photo;
 
     let challenge = {
@@ -249,7 +282,7 @@ fn start_step(app: AppHandle, state: SharedState, session_id: usize) -> Result<(
         app.clone(),
         state.clone(),
         session.session_id,
-        session.current_idx,
+        generation,
         seconds_per_photo,
     );
 
@@ -257,7 +290,7 @@ fn start_step(app: AppHandle, state: SharedState, session_id: usize) -> Result<(
     Ok(())
 }
 
-fn start_timer(app: AppHandle, state: SharedState, session_id: usize, step_idx: usize, seconds_per_photo: u64) {
+fn start_timer(app: AppHandle, state: SharedState, session_id: usize, generation: usize, seconds_per_photo: u64) {
     thread::spawn(move || {
         for remaining in (0..=seconds_per_photo).rev() {
             {
@@ -267,7 +300,7 @@ fn start_timer(app: AppHandle, state: SharedState, session_id: usize, step_idx: 
                         Some(session) => session,
                         None => return,
                     };
-                    if session.session_id != session_id || session.current_idx != step_idx + 1 {
+                    if session.session_id != session_id || session.step_generation != generation {
                         return;
                     }
                 }
@@ -275,7 +308,7 @@ fn start_timer(app: AppHandle, state: SharedState, session_id: usize, step_idx: 
 
             app.emit("timer_tick", remaining).ok();
             if remaining == 0 {
-                app.emit("time_expired", step_idx + 1).ok();
+                app.emit("time_expired", generation).ok();
                 return;
             }
             thread::sleep(Duration::from_secs(1));
@@ -390,6 +423,18 @@ fn pick_random_files(root: &Path, count: usize) -> Result<Vec<PathBuf>, std::io:
     Ok(picks)
 }
 
+fn pick_replacement(root: &Path, exclude: &HashSet<PathBuf>) -> Option<PathBuf> {
+    let mut rng = rand::thread_rng();
+    for _ in 0..ATTEMPTS_PER_PHOTO {
+        if let Some(candidate) = random_walk_pick(root, &mut rng) {
+            if !exclude.contains(&candidate) {
+                return Some(candidate);
+            }
+        }
+    }
+    None
+}
+
 fn random_walk_pick(root: &Path, rng: &mut rand::rngs::ThreadRng) -> Option<PathBuf> {
     let depth = rng.gen_range(2..=8);
     let mut current = root.to_path_buf();
@@ -481,7 +526,8 @@ fn main() {
             manual_next,
             skip_step,
             keep_working,
-            open_export_folder
+            open_export_folder,
+            reject_current
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
