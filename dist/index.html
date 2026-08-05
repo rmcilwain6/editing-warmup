@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lightroom Warmup</title>
+    <title>TestStrip</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main id="app">
       <header>
-        <h1>Lightroom Warmup</h1>
+        <h1>TestStrip</h1>
       </header>
       <section id="ready" class="panel active">
         <p class="label">Archive Root</p>
@@ -23,8 +23,17 @@
         <div class="button-row">
           <button id="start" disabled>Start</button>
           <button id="open-settings">Settings</button>
+          <button id="open-history">History</button>
         </div>
         <p id="ready-error" class="error"></p>
+      </section>
+
+      <section id="history" class="panel">
+        <h2>History</h2>
+        <div id="history-list" class="history-list"></div>
+        <div class="button-row">
+          <button id="history-back">Back</button>
+        </div>
       </section>
 
       <section id="settings" class="panel">

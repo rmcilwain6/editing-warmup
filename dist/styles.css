@@ -201,3 +201,75 @@ li {
   border-radius: 6px;
   margin-bottom: 6px;
 }
+
+.history-list {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.history-session {
+  border: 1px solid #e8eaed;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.history-session-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.history-open-folder {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.history-entry-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.history-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #f8f9fa;
+  padding: 6px 8px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.history-entry-text {
+  flex: 1;
+}
+
+.outcome-badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.outcome-exported {
+  background: #e6f4ea;
+  color: #1e7e34;
+}
+
+.outcome-skipped {
+  background: #fff4e5;
+  color: #b26a00;
+}
+
+.outcome-abandoned {
+  background: #fce8e6;
+  color: #c62828;
+}

@@ -118,3 +118,78 @@ pub fn save_settings(app: &AppHandle, settings: &Settings) -> Result<(), String>
     let json = serde_json::to_string_pretty(settings).map_err(|err| err.to_string())?;
     fs::write(path, json).map_err(|err| err.to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_challenges_are_all_enabled_and_not_custom() {
+        let defs = default_challenge_defs();
+        assert!(!defs.is_empty());
+        assert!(defs.iter().all(|c| c.enabled && !c.custom));
+    }
+
+    #[test]
+    fn merge_with_defaults_preserves_disabled_builtin_flag() {
+        let mut saved = Settings::default();
+        saved.challenges[0].enabled = false;
+
+        let merged = merge_with_defaults(saved);
+        assert!(!merged.challenges[0].enabled);
+        assert_eq!(merged.challenges.len(), default_challenge_defs().len());
+    }
+
+    #[test]
+    fn merge_with_defaults_keeps_custom_challenges() {
+        let mut saved = Settings::default();
+        saved.challenges.push(ChallengeDef {
+            id: "custom-1".to_string(),
+            text: "My custom challenge".to_string(),
+            enabled: true,
+            custom: true,
+        });
+
+        let merged = merge_with_defaults(saved);
+        assert!(merged
+            .challenges
+            .iter()
+            .any(|c| c.id == "custom-1" && c.text == "My custom challenge"));
+    }
+
+    #[test]
+    fn merge_with_defaults_drops_stale_builtin_ids_not_in_current_defaults() {
+        let mut saved = Settings::default();
+        saved.challenges.push(ChallengeDef {
+            id: "builtin-old-removed".to_string(),
+            text: "no longer a default".to_string(),
+            enabled: true,
+            custom: false,
+        });
+
+        let merged = merge_with_defaults(saved);
+        assert!(!merged.challenges.iter().any(|c| c.id == "builtin-old-removed"));
+    }
+
+    #[test]
+    fn merge_with_defaults_clamps_out_of_range_values() {
+        let mut saved = Settings::default();
+        saved.photos_per_session = 999;
+        saved.seconds_per_photo = 1;
+
+        let merged = merge_with_defaults(saved);
+        assert_eq!(merged.photos_per_session, 20);
+        assert_eq!(merged.seconds_per_photo, 5);
+    }
+
+    #[test]
+    fn merge_with_defaults_preserves_last_used_folders() {
+        let mut saved = Settings::default();
+        saved.last_archive_root = Some("C:/archive".to_string());
+        saved.last_export_root = Some("C:/exports".to_string());
+
+        let merged = merge_with_defaults(saved);
+        assert_eq!(merged.last_archive_root, Some("C:/archive".to_string()));
+        assert_eq!(merged.last_export_root, Some("C:/exports".to_string()));
+    }
+}

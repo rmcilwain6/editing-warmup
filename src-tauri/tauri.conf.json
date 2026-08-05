@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Lightroom Warmup",
+  "productName": "TestStrip",
   "version": "0.1.0",
-  "identifier": "com.example.lightroomwarmup",
+  "identifier": "com.reedmcilwain.teststrip",
   "build": {
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
@@ -13,7 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Lightroom Warmup",
+        "title": "TestStrip",
         "width": 460,
         "height": 640,
         "resizable": true,

@@ -7,6 +7,7 @@ const settingsPanel = document.getElementById("settings");
 const activePanel = document.getElementById("active");
 const expiredPanel = document.getElementById("expired");
 const summaryPanel = document.getElementById("summary");
+const historyPanel = document.getElementById("history");
 
 const archiveRoot = document.getElementById("archive-root");
 const exportRoot = document.getElementById("export-root");
@@ -26,6 +27,9 @@ const pickArchiveButton = document.getElementById("pick-archive");
 const pickExportButton = document.getElementById("pick-export");
 const startButton = document.getElementById("start");
 const openSettingsButton = document.getElementById("open-settings");
+const openHistoryButton = document.getElementById("open-history");
+const historyBackButton = document.getElementById("history-back");
+const historyListEl = document.getElementById("history-list");
 const nextButton = document.getElementById("next");
 const skipButton = document.getElementById("skip");
 const rejectButton = document.getElementById("reject");
@@ -75,9 +79,11 @@ pickExportButton.addEventListener("click", async () => {
 });
 
 const setPanel = (panel) => {
-  [readyPanel, settingsPanel, activePanel, expiredPanel, summaryPanel].forEach((item) => {
-    item.classList.remove("active");
-  });
+  [readyPanel, settingsPanel, activePanel, expiredPanel, summaryPanel, historyPanel].forEach(
+    (item) => {
+      item.classList.remove("active");
+    }
+  );
   panel.classList.add("active");
 };
 
@@ -125,6 +131,89 @@ openSettingsButton.addEventListener("click", async () => {
   newChallengeText.value = "";
   renderChallengeList();
   setPanel(settingsPanel);
+});
+
+const outcomeLabels = {
+  exported: "Exported",
+  skipped: "Skipped",
+  abandoned: "Abandoned",
+};
+
+const renderHistory = (entries) => {
+  historyListEl.innerHTML = "";
+  if (entries.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "small";
+    empty.textContent = "No past sessions yet.";
+    historyListEl.appendChild(empty);
+    return;
+  }
+
+  const sessions = new Map();
+  entries.forEach((entry) => {
+    if (!sessions.has(entry.export_dir)) {
+      sessions.set(entry.export_dir, {
+        timestamp: entry.timestamp,
+        export_dir: entry.export_dir,
+        entries: [],
+      });
+    }
+    sessions.get(entry.export_dir).entries.push(entry);
+  });
+
+  sessions.forEach((session) => {
+    const group = document.createElement("div");
+    group.className = "history-session";
+
+    const header = document.createElement("div");
+    header.className = "history-session-header";
+
+    const title = document.createElement("span");
+    title.textContent = session.timestamp.replace("_", " ");
+    header.appendChild(title);
+
+    const openButton = document.createElement("button");
+    openButton.className = "history-open-folder";
+    openButton.textContent = "Open folder";
+    openButton.addEventListener("click", async () => {
+      await invoke("open_path", { path: session.export_dir });
+    });
+    header.appendChild(openButton);
+
+    group.appendChild(header);
+
+    const list = document.createElement("ul");
+    list.className = "history-entry-list";
+    session.entries.forEach((entry) => {
+      const item = document.createElement("li");
+      item.className = "history-entry";
+
+      const badge = document.createElement("span");
+      badge.className = `outcome-badge outcome-${entry.outcome}`;
+      badge.textContent = outcomeLabels[entry.outcome] || entry.outcome;
+      item.appendChild(badge);
+
+      const text = document.createElement("span");
+      text.className = "history-entry-text";
+      text.textContent = entry.challenge;
+      item.appendChild(text);
+
+      list.appendChild(item);
+    });
+    group.appendChild(list);
+
+    historyListEl.appendChild(group);
+  });
+};
+
+openHistoryButton.addEventListener("click", async () => {
+  const entries = await invoke("get_history");
+  renderHistory(entries);
+  setPanel(historyPanel);
+});
+
+historyBackButton.addEventListener("click", () => {
+  setPanel(readyPanel);
 });
 
 addChallengeButton.addEventListener("click", () => {

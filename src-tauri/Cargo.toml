@@ -1,5 +1,5 @@
 [package]
-name = "lightroom-warmup"
+name = "teststrip"
 version = "0.1.0"
 edition = "2021"
 metadata = ''
@@ -19,6 +19,9 @@ tauri-plugin-dialog = "2"
 [dependencies.tauri]
 version = "2"
 features = []
+
+[dev-dependencies]
+tempfile = "3"
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]

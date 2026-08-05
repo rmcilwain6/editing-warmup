@@ -1,4 +1,4 @@
-# Lightroom Warmup — Roadmap to Shareable MVP
+# TestStrip — Roadmap to Shareable MVP
 
 Status as of this doc: functional POC. Session flow, folder pickers, and a
 Settings panel (photo count, timer, challenge list with custom additions,
@@ -200,9 +200,10 @@ to mute them entirely.
 ### 10. Packaging & distribution
 This is the big unknown the user asked about — details below in its own
 section. Concretely:
-- [ ] Fill in real `tauri.conf.json` bundle metadata (publisher, description,
-      license, proper `identifier` — currently `com.example.lightroomwarmup`
-      which should not ship as-is)
+- [x] Fill in real `tauri.conf.json` bundle metadata: `productName` is now
+      "TestStrip" and `identifier` is `com.reedmcilwain.teststrip` (was
+      `com.example.lightroomwarmup`). Publisher/description/license fields
+      in a `bundle` section are still not filled in.
 - [ ] Generate a full icon set from a real source image (`cargo tauri icon`)
 - [ ] Decide on code signing (see below) — determines whether recipients see
       scary OS warnings on first launch
@@ -274,8 +275,9 @@ worth deciding early:
   build through Apple's notarization service. This is the single biggest
   piece of *process* overhead in going cross-platform and shareable.
 
-**3. A real identifier and icon.** `com.example.lightroomwarmup` and the
-placeholder `.ico` are dev-only stand-ins; both should be replaced before
+**3. A real identifier and icon.** The identifier is now
+`com.reedmcilwain.teststrip` (was `com.example.lightroomwarmup`); the
+placeholder `.ico` still needs replacing with a real app icon before
 anything is shared, even informally.
 
 **4. Distribution channel.** For a small-audience share, the simplest path

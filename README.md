@@ -1,4 +1,4 @@
-# Lightroom Warmup (Tauri POC)
+# TestStrip (Tauri POC)
 
 A minimal Windows desktop companion for Lightroom warmup sessions. It randomly picks three `.CR2` files from an archive folder, opens each in Lightroom via the OS default handler, watches an export folder for the expected JPG, and walks you through the session with a small always-on-top UI.
 
